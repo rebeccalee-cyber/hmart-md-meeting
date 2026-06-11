@@ -745,28 +745,25 @@ async function handleNiBaSale(i,inp){
   const products=[];
   autoRows.forEach((row,ri)=>{
     if(ri<22) return;
-    // Accept UPC as number OR string (handles both English and Korean BA_SALE formats)
     const upcRaw=row[0];
     if(!upcRaw) return;
     const upcNum=Number(upcRaw);
-    // UPCs are typically 12-13 digits; also accept anything ≥ 6 digits
     if(!upcNum || upcNum < 100000) return;
     products.push({
       upc:  String(Math.round(upcNum)),
       b1:   String(Math.round(Number(row[1])||0)),
       desc: String(row[2]||'').replace(/\n/g,' '),
-      pack: Number(row[3])||1,          // handles both numeric 24 and string '24'
+      pack: Number(row[3])||1,
       srp:  Number(row[10]||row[6])||0,
-      cost: Number(row[8]||row[4])||0   // special store cost, fallback regular
+      cost: Number(row[8]||row[4])||0
     });
   });
 
   // Parse Store Distribution — find by name or content (handles Korean sheet names)
   const distSheetObj=findSheet(wb,
     ['Store Distribution','매장별 분배','분배','STORE DISTRIBUTION','Store_Distribution'],
-    rows=>rows[2]&&rows[2].includes('JRC')  // row 3 always has store codes including JRC
+    rows=>rows[2]&&rows[2].includes('JRC')
   );
-  const distSheet=distSheetObj;
   if(distSheetObj){
     const dRows=XLSX.utils.sheet_to_json(distSheetObj,{header:1,defval:null});
     const storeHdr=dRows[2]||[];
@@ -774,9 +771,6 @@ async function handleNiBaSale(i,inp){
     // Build colReg ONLY from exact known store codes — no region-label fill-forward
     const colReg={};
     storeHdr.forEach((h,ci)=>{ const r=b1Reg(h); if(r) colReg[ci]=r; });
-    // Fallback: for cols where header matches a known east-coast store code from the full list
-    // (already handled above via b1Reg). Do NOT fill-forward from region label rows
-    // so we never accidentally pull in GA/IL/TX columns.
 
     products.forEach(p=>{
       const row=dRows.find(r=>r&&r[0]&&String(Math.round(r[0]))===p.upc);
@@ -795,11 +789,9 @@ async function handleNiBaSale(i,inp){
 }
 
 function generateNewItems(){
-  // Flatten all products from all BA_SALE files into one list
   const allProducts=[];
   niSlots.forEach(slot=>{
     slot.products.forEach((p,pi)=>{
-      // Assign an image: one per product (cycle through available images)
       allProducts.push({...p, img: slot.images[pi]||slot.images[0]||null});
     });
   });
@@ -812,7 +804,6 @@ function generateNewItems(){
   const wk=document.getElementById('ni-weekNum').value;
   const dr=document.getElementById('ni-dateRange').value;
 
-  // Pre-compute ARAM data and totals for each product
   const enriched=allProducts.map(p=>{
     const aramRows=(niAram&&niAram[p.upc])||[];
     const sq={NY:0,NJ:0,PA:0,MA:0}, sa={NY:0,NJ:0,PA:0,MA:0};
@@ -820,17 +811,14 @@ function generateNewItems(){
     const tSq=REGIONS.reduce((s,r)=>s+sq[r],0);
     const tSa=Math.round(REGIONS.reduce((s,r)=>s+sa[r],0));
     const dist=p.dist||{NY:0,NJ:0,PA:0,MA:0,TOTAL:0};
-    // Distribution $ = boxes distributed × store cost per case
     const distAmt=Math.round((dist.TOTAL||0)*(p.cost||0));
     return{...p,sq,sa,tSq,tSa,dist,distAmt};
   });
 
-  // Chart data: collapsed by REGION (NY/NJ/PA/MA), not per product
   const chartLabels=REGIONS;
   const distData=REGIONS.map(r=>enriched.reduce((s,p)=>s+(p.dist[r]||0),0));
   const aramData=REGIONS.map(r=>enriched.reduce((s,p)=>s+(p.sq[r]||0), 0));
 
-  // Build combined summary table rows
   const tableRows=enriched.map((p,i)=>{
     const rowBg=i%2===0?'':'background:#f8f9fa;';
     return `<tr style="${rowBg}">
@@ -844,14 +832,12 @@ function generateNewItems(){
     </tr>`;
   }).join('');
 
-  // Totals row
   const totDist=REGIONS.map(r=>enriched.reduce((s,p)=>s+(p.dist[r]||0),0));
   const totSq  =REGIONS.map(r=>enriched.reduce((s,p)=>s+(p.sq[r]||0), 0));
   const totDistTotal=enriched.reduce((s,p)=>s+(p.dist.TOTAL||0),0);
   const totAramSq   =enriched.reduce((s,p)=>s+p.tSq,0);
   const totAramSa   =enriched.reduce((s,p)=>s+p.tSa,0);
 
-  // Build top 10 stores across ALL new item UPCs (east coast only)
   const storeMap={};
   enriched.forEach(p=>{
     const aramRows=(niAram&&niAram[p.upc])||[];
@@ -866,7 +852,6 @@ function generateNewItems(){
     .map(([store,v])=>({store,zone:v.zone,amt:Math.round(v.amt)}))
     .sort((a,b)=>b.amt-a.amt).slice(0,10);
 
-  // Build image gallery
   const galleryItems=enriched.map((p,i)=>{
     const shortName=p.desc.split(' ').slice(0,3).join(' ');
     const imgEl=p.img
@@ -962,7 +947,6 @@ function generateNewItems(){
 
   document.getElementById('niReport').innerHTML=html;
 
-  // Draw chart after DOM paint
   requestAnimationFrame(()=>requestAnimationFrame(()=>{
     const ctx=document.getElementById('ni-chart');
     if(ctx){
@@ -990,7 +974,6 @@ function generateNewItems(){
         }
       }));
     }
-    // Top 10 stores horizontal bar chart
     const t10ctx=document.getElementById('ni-top10-chart');
     if(t10ctx && top10stores.length>0){
       allCharts.push(new Chart(t10ctx,{
@@ -1048,7 +1031,6 @@ function getClientId(){
 function onGoogleLibLoad(){
   const clientId = getClientId();
   if(!clientId || clientId === 'YOUR_GOOGLE_CLIENT_ID'){
-    // No client ID set — skip auth and show app directly
     document.getElementById('login-overlay').style.display='none';
     document.getElementById('app').style.display='block';
     return;
@@ -1062,7 +1044,7 @@ function onGoogleLibLoad(){
     document.getElementById('g-signin-btn'),
     { theme:'filled_blue', size:'large', width:300, text:'signin_with' }
   );
-  google.accounts.id.prompt(); // auto-prompt if previously signed in
+  google.accounts.id.prompt();
 }
 
 function parseJwt(token){
@@ -1081,7 +1063,6 @@ function handleCredentialResponse(response){
     return;
   }
 
-  // ✅ Authorized — show dashboard
   document.getElementById('login-err').style.display='none';
   document.getElementById('login-avatar').src = payload.picture || '';
   document.getElementById('login-name').textContent  = payload.name  || email;
@@ -1106,7 +1087,6 @@ function signOut(){
   if(typeof google !== 'undefined') google.accounts.id.disableAutoSelect();
 }
 
-// Check if already authed this session
 window.addEventListener('load', ()=>{
   const saved = sessionStorage.getItem('hmart_auth');
   if(saved){
@@ -1117,14 +1097,12 @@ window.addEventListener('load', ()=>{
       return;
     }
   }
-  // Wait for Google library to load
   const check=setInterval(()=>{
     if(typeof google !== 'undefined' && google.accounts){
       clearInterval(check);
       onGoogleLibLoad();
     }
   }, 100);
-  // If Google script fails to load after 5s, just show the app anyway (local use)
   setTimeout(()=>{
     if(document.getElementById('login-overlay').style.display!=='none'){
       clearInterval(check);
