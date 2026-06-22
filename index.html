@@ -452,11 +452,27 @@ function parseAram(wb){
 function buildPackMap(wb){
   const pm={};
   wb.SheetNames.forEach(sn=>{
-    XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:null}).forEach(row=>{
-      const p=Number(row[4]);
+    const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:null});
+    // Auto-detect column positions — scan first 5 rows for a header row
+    let packCol=4, upcCol=2, icCol=1; // defaults for standard ITEM_LIST_FORMAT
+    let hdrFound=false;
+    for(let ri=0;ri<Math.min(5,rows.length);ri++){
+      const hdr=rows[ri]||[];
+      let hasKeyword=false;
+      hdr.forEach((h,ci)=>{
+        if(!h) return;
+        const hs=String(h).toUpperCase().replace(/[\s\/\n_]/g,'');
+        if(hs==='BOX'||hs==='PACK'||hs==='PACKSIZE'||hs==='BOXPACK'){ packCol=ci; hasKeyword=true; }
+        if(hs==='UPC'||hs==='UPCCODE'||hs==='UPCNO'){ upcCol=ci; hasKeyword=true; }
+        if(hs==='B1CODE'||hs==='B1'||hs==='ITEMCODE'||hs==='IC'){ icCol=ci; hasKeyword=true; }
+      });
+      if(hasKeyword){ hdrFound=true; break; }
+    }
+    rows.forEach(row=>{
+      const p=Number(row[packCol]);
       if(!p||p<1||p>500) return;
-      if(row[2]){ const u=String(row[2]).replace(/\.0$/,'').trim(); if(u&&u!='UPC CODE') pm[u]=Math.round(p); }
-      if(row[1]){ const ic=String(row[1]).replace(/\.0$/,'').trim(); if(ic&&!isNaN(ic)) pm[ic]=Math.round(p); }
+      if(row[upcCol]){ const u=String(row[upcCol]).replace(/\.0$/,'').trim(); if(u&&u!='UPC'&&u!='UPC CODE'&&isFinite(u)) pm[u]=Math.round(p); }
+      if(row[icCol]){ const ic=String(row[icCol]).replace(/\.0$/,'').trim(); if(ic&&!isNaN(ic)&&ic!='B1 CODE'&&ic!='ITEM CODE') pm[ic]=Math.round(p); }
     });
   });
   return pm;
