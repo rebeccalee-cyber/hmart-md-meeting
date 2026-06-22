@@ -303,7 +303,7 @@ body{font-family:Calibri,Arial,sans-serif;background:#f0f4f8;color:#222;min-heig
       <div class="ni-grid" id="niGrid"></div>
       <div style="margin-top:10px;">
         <button class="btn btn-outline" style="font-size:12px;padding:6px 14px;" onclick="addNiSlot()">+ Add Item List</button>
-        <span style="font-size:10px;color:#888;margin-left:8px">Each file = one product group</span>
+        <span style="font-size:10px;color:#888;margin-left:8px">Max 10</span>
       </div>
     </div>
     <div class="gen-bar">
@@ -673,7 +673,7 @@ let niAram=null, niSlotN=0;
 const niSlots=[];
 
 function addNiSlot(){
-  if(niSlotN>=6) return;
+  if(niSlotN>=10) return;
   const i=niSlotN++;
   niSlots.push({products:[],images:[]});
   const g=document.getElementById('niGrid');
