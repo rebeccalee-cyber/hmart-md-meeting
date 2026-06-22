@@ -823,7 +823,8 @@ function generateNewItems(){
   const enriched=allProducts.map(p=>{
     const aramRows=(niAram&&niAram[p.upc])||[];
     const sq={NY:0,NJ:0,PA:0,MA:0}, sa={NY:0,NJ:0,PA:0,MA:0};
-    aramRows.forEach(r=>{ if(!EAST.has(r.zone)) return; sq[r.zone]+=r.qty; sa[r.zone]+=r.amt; });
+    aramRows.forEach(r=>{ if(!EAST.has(r.zone)) return; sq[r.zone]+=r.qty/(p.pack||1); sa[r.zone]+=r.amt; });
+    REGIONS.forEach(k=>sq[k]=Math.round(sq[k]));
     const tSq=REGIONS.reduce((s,r)=>s+sq[r],0);
     const tSa=Math.round(REGIONS.reduce((s,r)=>s+sa[r],0));
     const dist=p.dist||{NY:0,NJ:0,PA:0,MA:0,TOTAL:0};
@@ -902,7 +903,7 @@ function generateNewItems(){
             <th rowspan="2">Description</th>
             <th colspan="5" style="background:#2E74B5">Distribution (Stores)</th>
             <th rowspan="2" style="background:#1a5276;color:#fff;">Dist. Amount ($)</th>
-            <th colspan="5" style="background:#ED7D31">ARAM Sales (Units)</th>
+            <th colspan="5" style="background:#ED7D31">ARAM Sales (BOX)</th>
             <th rowspan="2" class="y">ARAM Sales ($)</th>
           </tr>
           <tr>
@@ -971,7 +972,7 @@ function generateNewItems(){
           labels: chartLabels,
           datasets:[
             {label:'Distribution (Stores)', data:distData, backgroundColor:'#4472C4', borderWidth:0},
-            {label:'ARAM Sales (Units)',     data:aramData, backgroundColor:'#ED7D31', borderWidth:0}
+            {label:'ARAM Sales (BOX)',     data:aramData, backgroundColor:'#ED7D31', borderWidth:0}
           ]
         },
         options:{
