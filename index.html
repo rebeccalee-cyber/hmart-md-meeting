@@ -943,9 +943,9 @@ function generateNewItems(){
             <tbody>
               ${top10stores.map((s,i)=>`<tr>
                 <td style="text-align:center;font-weight:700;">${i+1}</td>
-                <td>${s.zone}</td>
-                <td>${s.store}</td>
-                <td style="text-align:right;">${fmtD(s.amt)}</td>
+                <td style="text-align:center;">${s.zone}</td>
+                <td style="text-align:center;">${s.store}</td>
+                <td style="text-align:center;">${fmtD(s.amt)}</td>
               </tr>`).join('')}
             </tbody>
           </table>` : `<div style="color:#aaa;font-size:12px;padding:20px;">No ARAM sales data — upload a Sales Report By UPC file.</div>`}
