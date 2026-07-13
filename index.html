@@ -461,9 +461,9 @@ function buildPackMap(wb){
       hdr.forEach((h,ci)=>{
         if(!h) return;
         const hs=String(h).toUpperCase().replace(/[\s\/\n_]/g,'');
-        if(hs==='BOX'||hs==='PACK'||hs==='PACKSIZE'||hs==='BOXPACK'){ packCol=ci; hasKeyword=true; }
-        if(hs==='UPC'||hs==='UPCCODE'||hs==='UPCNO'){ upcCol=ci; hasKeyword=true; }
-        if(hs==='B1CODE'||hs==='B1'||hs==='ITEMCODE'||hs==='IC'){ icCol=ci; hasKeyword=true; }
+        if(hs==='BOX'||hs.includes('PACK')||hs.includes('입수')){ packCol=ci; hasKeyword=true; }
+        if(hs==='UPC'||hs==='UPCCODE'||hs==='UPCNO'||hs==='UPCNUMBER'||hs.includes('UPC')){ upcCol=ci; hasKeyword=true; }
+        if(hs==='B1CODE'||hs==='B1'||hs==='IC'||hs==='B1ITEMCODE'||(hs.includes('ITEM')&&hs.includes('CODE'))||hs.includes('아이템')||hs.includes('품목')){ icCol=ci; hasKeyword=true; }
       });
       if(hasKeyword){ hdrFound=true; break; }
     }
