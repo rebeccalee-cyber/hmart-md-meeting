@@ -461,9 +461,11 @@ function buildPackMap(wb){
       hdr.forEach((h,ci)=>{
         if(!h) return;
         const hs=String(h).toUpperCase().replace(/[\s\/\n_]/g,'');
-        if(hs==='BOX'||hs.includes('PACK')||hs.includes('입수')){ packCol=ci; hasKeyword=true; }
-        if(hs==='UPC'||hs==='UPCCODE'||hs==='UPCNO'||hs==='UPCNUMBER'||hs.includes('UPC')){ upcCol=ci; hasKeyword=true; }
-        if(hs==='B1CODE'||hs==='B1'||hs==='IC'||hs==='B1ITEMCODE'||(hs.includes('ITEM')&&hs.includes('CODE'))||hs.includes('아이템')||hs.includes('품목')){ icCol=ci; hasKeyword=true; }
+        // Pack size: exact short keywords only — avoid matching product descriptions that contain "PACK"
+        const PACK_HDRS=['BOX','PACK','PACKSIZE','PACKINGSIZE','PACKING','입수','박스'];
+        if(PACK_HDRS.includes(hs)||(hs.length<=20&&(hs.includes('PACK')&&(hs.includes('SIZE')||hs==='PACK'))||hs==='입수')){ packCol=ci; hasKeyword=true; }
+        if(hs==='UPC'||hs==='UPCCODE'||hs==='UPCNO'||hs==='UPCNUMBER'){ upcCol=ci; hasKeyword=true; }
+        if(hs==='B1CODE'||hs==='B1'||hs==='IC'||hs==='B1ITEMCODE'||(hs.includes('ITEM')&&hs.includes('CODE'))){ icCol=ci; hasKeyword=true; }
       });
       if(hasKeyword){ hdrFound=true; break; }
     }
