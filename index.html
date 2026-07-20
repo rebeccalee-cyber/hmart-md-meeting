@@ -107,6 +107,7 @@ body{font-family:Calibri,Arial,sans-serif;background:#f0f4f8;color:#222;min-heig
 .fup-btn{display:flex;align-items:center;gap:6px;border:1.5px dashed #ccc;border-radius:4px;padding:5px 10px;cursor:pointer;font-size:11px;color:#666;transition:.15s;}
 .fup-btn:hover{border-color:var(--blue);background:#f0f5ff;}
 .fup-btn.done{border-color:var(--green)!important;background:#f0fff4;color:var(--green);font-weight:700;}
+.fup-btn.err{border-color:var(--red)!important;background:#fff0f0;color:var(--red);font-weight:700;}
 .fup-btn input{display:none;}
 
 /* NEW ITEMS UPLOAD CARDS */
@@ -412,7 +413,16 @@ function handleEvAram(i,inp){
   const f=inp.files[0]; if(!f) return;
   document.getElementById(`aram-btn-${i}`).classList.add('done');
   document.getElementById(`aram-txt-${i}`).textContent='✓ '+f.name;
-  readXL(f).then(wb=>{ evSlots[i].aram=parseAram(wb); });
+  readXL(f).then(wb=>{
+    const rows=parseAram(wb);
+    const eastRows=rows.filter(r=>EAST.has(r.zone));
+    if(rows.length>0&&eastRows.length===0){
+      document.getElementById(`aram-txt-${i}`).textContent='⚠️ '+f.name+' — No NY/NJ/PA/MA rows found! Wrong file?';
+      document.getElementById(`aram-btn-${i}`).classList.remove('done');
+      document.getElementById(`aram-btn-${i}`).classList.add('err');
+    }
+    evSlots[i].aram=rows;
+  });
 }
 function handleEvItem(i,inp){
   const f=inp.files[0]; if(!f) return;
@@ -462,8 +472,11 @@ function buildPackMap(wb){
         if(!h) return;
         const hs=String(h).toUpperCase().replace(/[\s\/\n_]/g,'');
         // Pack size: exact short keywords only — avoid matching product descriptions that contain "PACK"
-        const PACK_HDRS=['BOX','PACK','PACKSIZE','PACKINGSIZE','PACKING','입수','박스'];
-        if(PACK_HDRS.includes(hs)||(hs.length<=20&&(hs.includes('PACK')&&(hs.includes('SIZE')||hs==='PACK'))||hs==='입수')){ packCol=ci; hasKeyword=true; }
+        const PACK_HDRS=['BOX','PACK','PACKSIZE','PACKINGSIZE','PACKING','입수','입수량','박스'];
+        const isPackHdr=PACK_HDRS.includes(hs)||
+          (hs.length<=20&&hs.includes('PACK')&&(hs.includes('SIZE')||hs==='PACK'))||
+          hs.startsWith('입수')||hs==='박스';
+        if(isPackHdr){ packCol=ci; hasKeyword=true; }
         if(hs==='UPC'||hs==='UPCCODE'||hs==='UPCNO'||hs==='UPCNUMBER'){ upcCol=ci; hasKeyword=true; }
         if(hs==='B1CODE'||hs==='B1'||hs==='IC'||hs==='B1ITEMCODE'||(hs.includes('ITEM')&&hs.includes('CODE'))){ icCol=ci; hasKeyword=true; }
       });
