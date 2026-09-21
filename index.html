@@ -551,8 +551,25 @@ function buildPackMap(wb){
       if(hasKeyword){ hdrFound=true; break; }
     }
     rows.forEach(row=>{
-      const p=Number(row[packCol]);
-      if(!p||p<1||p>500) return;
+      if(!row) return;
+      // 1) Try the detected "pack size" column as a clean integer (1-500).
+      const colP=Number(row[packCol]);
+      const colValid=colP&&colP>=1&&colP<=500&&Number.isFinite(colP);
+      // 2) Fallback: some item-list formats put a box DIMENSION string in
+      //    that column (e.g. "415*295*325"), and the real units-per-box is
+      //    instead embedded at the end of the description text, like
+      //    "...OMELET CAKE ORIGINAL 7.62OZ(216G)(18G*12PCS)/10" → 10 packs
+      //    per box. Scan every text cell in the row for a trailing "/N".
+      let descP=null;
+      if(!colValid){
+        for(const cell of row){
+          if(typeof cell!=='string'||cell.length<15) continue;
+          const m=cell.match(/\)\s*\/\s*(\d{1,3})\s*$/)||cell.match(/\/\s*(\d{1,3})\s*$/);
+          if(m){ const n=Number(m[1]); if(n>=1&&n<=500){ descP=n; break; } }
+        }
+      }
+      const p=colValid?colP:descP;
+      if(!p) return;
       if(row[upcCol]){ const u=String(row[upcCol]).replace(/\.0$/,'').trim(); if(u&&u!='UPC'&&u!='UPC CODE'&&isFinite(u)) pm[u]=Math.round(p); }
       if(row[icCol]){ const ic=String(row[icCol]).replace(/\.0$/,'').trim(); if(ic&&!isNaN(ic)&&ic!='B1 CODE'&&ic!='ITEM CODE') pm[ic]=Math.round(p); }
     });
