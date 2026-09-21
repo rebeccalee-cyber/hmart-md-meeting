@@ -236,7 +236,8 @@ body{font-family:Calibri,Arial,sans-serif;background:#f0f4f8;color:#222;min-heig
 </div>
 
 <div class="tabs">
-  <button class="tab active" onclick="switchTab('events',this)">📊 Events</button>
+  <button class="tab active" onclick="switchTab('events',this)">📊 Events (NY/NJ/PA/MA)</button>
+  <button class="tab" onclick="switchTab('other',this)">🌎 Events (Other Regions)</button>
   <button class="tab" onclick="switchTab('newitems',this)">🆕 New Items</button>
 </div>
 
@@ -275,6 +276,44 @@ body{font-family:Calibri,Arial,sans-serif;background:#f0f4f8;color:#222;min-heig
     </div>
   </div>
   <div id="eventsReport"></div>
+</div>
+
+<!-- ══════════════ OTHER REGIONS TAB ══════════════ -->
+<div id="tab-other" class="tab-content">
+  <div id="oth-status" class="status"></div>
+  <div class="card">
+    <div class="card-header" style="background:var(--orange);color:#fff;">
+      <h3>🌎 Configuration &amp; File Upload — Other Regions</h3>
+      <span style="font-size:11px;opacity:.7">Up to 6 events · B1 + ARAM + Item List per event · any region except NY/NJ/PA/MA</span>
+    </div>
+    <div class="card-body">
+      <div class="config-row">
+        <div class="config-field"><label>Week #</label>
+          <input type="number" id="oth-weekNum" value="24" min="1" max="52"></div>
+        <div class="config-field"><label>Date Range</label>
+          <input type="text" id="oth-dateRange" value="06/02/2026 - 06/08/2026"></div>
+      </div>
+      <div class="section-label">Step 1 — B1 Shipment File</div>
+      <div class="b1-row">
+        <label>B1 File:</label>
+        <label class="file-pill" style="background:var(--orange);color:#fff;">📊 Choose B1
+          <input type="file" accept=".xlsx,.xls" onchange="handleOtherB1(this)"></label>
+        <div class="file-name" id="oth-b1Name">No file selected</div>
+      </div>
+      <div class="section-label">Step 2 — Events (ARAM Sales + Item List each)</div>
+      <div class="events-grid" id="otherEventsGrid"></div>
+      <div style="margin-top:10px;">
+        <button class="btn btn-outline" style="font-size:12px;padding:6px 14px;" onclick="addOtherSlot()">+ Add Event</button>
+        <span style="font-size:10px;color:#888;margin-left:8px">Max 6</span>
+      </div>
+      <div style="font-size:10px;color:#888;margin-top:10px;">Region columns are detected automatically from the Zone Code in your ARAM files (e.g. GA, TX, CA, FL…). NY/NJ/PA/MA rows are ignored here — use the Events tab for those.</div>
+    </div>
+    <div class="gen-bar">
+      <button class="btn btn-outline" onclick="clearOtherEvents()">Clear</button>
+      <button class="btn" id="oth-genBtn" style="background:var(--orange);color:#fff;" onclick="generateOtherEvents()">⚡ Generate Other Regions Report</button>
+    </div>
+  </div>
+  <div id="otherEventsReport"></div>
 </div>
 
 <!-- ══════════════ NEW ITEMS TAB ══════════════ -->
@@ -326,6 +365,34 @@ const EAST=new Set(['NY','NJ','PA','MA']);
 const REGIONS=['NY','NJ','PA','MA'];
 
 function b1Reg(c){if(NY.has(c))return'NY';if(NJ.has(c))return'NJ';if(PA.has(c))return'PA';if(MA.has(c))return'MA';return null;}
+
+// ── Full H-Mart store code → state map (all regions), used by the
+//    "Other Regions" tab to resolve B1 shipment rows for any state.
+//    NY/NJ/PA/MA codes are included too but get excluded by otherReg()
+//    since those are handled on the main Events tab.
+const STORE_STATE={
+  // R1 - NY
+  LIC:'NY',WDS:'NY',HSD:'NY',GRN:'NY',NT3:'NY',WLP:'NY',BSD:'NY',UNN:'NY',RSV:'NY',YKS:'NY',NT2:'NY',JRC:'NY',
+  // R2 - NJ
+  RGF:'NJ',LTF:'NJ',FT2:'NJ',LON:'NJ',FTL:'NJ',PRM:'NJ',AMD:'NJ',EDS:'NJ',
+  // R3 - PA
+  PHL:'PA',UPD:'PA',LVT:'PA',CRH:'PA',EKP:'PA',
+  // R4 - MD, VA, NC
+  BRK:'VA',FDR:'MD',FX2:'VA',AND:'VA',HRD:'VA',WTN:'MD',MNS:'VA',CTV:'MD',ELT:'MD',GTB:'MD',FSC:'VA',CEN:'VA',CAR:'NC',
+  // R5 - GA, AL, FL
+  SWN:'GA',DRV:'GA',DLT:'GA',ORD:'FL',RVD:'GA',JSC:'GA',
+  // R6 - IL, MI
+  UBN:'IL',SB2:'IL',GLV:'IL',NPV:'IL',CCG:'IL',NLS:'IL',SBG:'IL',TRO:'MI',
+  // R7 - TX
+  KAT:'TX',CRT:'TX',HT2:'TX',PLN:'TX',AST:'TX',HRH:'TX',AT2:'TX',HTC:'TX',HST:'TX',
+  // R8 - CA, HI, AZ, NV
+  HNL:'HI',LSV:'NV',ACD:'CA',BNP:'CA',IV3:'CA',LB3:'CA',SMT:'CA',TRC:'CA',IVN:'CA',DAZ:'CA',MSA:'AZ',BBA:'CA',CHN:'CA',DMB:'CA',SJS:'CA',PRC:'HI',SDG:'CA',WMT:'CA',DBL:'CA',LKW:'CA',LA3:'CA',LA2:'CA',IV2:'CA',LSA:'CA',FMT:'CA',SFC:'CA',
+  // R9 - MA
+  CBR:'MA',BKL:'MA',QNC:'MA',BLT:'MA',MFD:'MA',SMV:'MA'
+};
+// Resolves a store code to its state for the "Other Regions" tab only.
+// Returns null for unknown codes or for NY/NJ/PA/MA (handled on the main tab).
+function otherReg(c){ const st=STORE_STATE[c]; if(!st||EAST.has(st)) return null; return st; }
 function fmt(n){return Number(n||0).toLocaleString('en-US');}
 function fmtD(n){return'$'+Number(n||0).toLocaleString('en-US');}
 function readXL(file){
@@ -365,6 +432,7 @@ const evSlots=[];
 
 window.onload=()=>{
   for(let i=0;i<5;i++) addEvSlot();
+  for(let i=0;i<3;i++) addOtherSlot();
   for(let i=0;i<2;i++) addNiSlot();
 };
 
@@ -415,9 +483,9 @@ function handleEvAram(i,inp){
   document.getElementById(`aram-txt-${i}`).textContent='✓ '+f.name;
   readXL(f).then(wb=>{
     const rows=parseAram(wb);
-    const eastRows=rows.filter(r=>EAST.has(r.zone));
-    if(rows.length>0&&eastRows.length===0){
-      document.getElementById(`aram-txt-${i}`).textContent='⚠️ '+f.name+' — No NY/NJ/PA/MA rows found! Wrong file?';
+    const activeRows=rows.filter(r=>EAST.has(r.zone));
+    if(rows.length>0&&activeRows.length===0){
+      document.getElementById(`aram-txt-${i}`).textContent=`⚠️ ${f.name} — No ${REGIONS.join('/')} rows found! Wrong file?`;
       document.getElementById(`aram-btn-${i}`).classList.remove('done');
       document.getElementById(`aram-btn-${i}`).classList.add('err');
     }
@@ -495,8 +563,8 @@ function buildPackMap(wb){
 function calcEvent(ev){
   if(!ev.aram) return null;
   const pm=ev.pack||{};
-  const shq={NY:0,NJ:0,PA:0,MA:0}, sha={NY:0,NJ:0,PA:0,MA:0};
-  const sq={NY:0,NJ:0,PA:0,MA:0},  sa={NY:0,NJ:0,PA:0,MA:0};
+  const shq=Object.fromEntries(REGIONS.map(r=>[r,0])), sha=Object.fromEntries(REGIONS.map(r=>[r,0]));
+  const sq=Object.fromEntries(REGIONS.map(r=>[r,0])),  sa=Object.fromEntries(REGIONS.map(r=>[r,0]));
   const stores={};
   const ics=new Set(ev.aram.map(r=>r.ic));
   if(evB1){
@@ -574,7 +642,7 @@ function buildEvHtml(wk,dr,results){
       <h2 style="margin-top:6px">Week ${wk} in Review</h2>
       <div style="font-size:11px;opacity:.7;margin-top:2px">${dr} | MD TEAM</div>
     </div>
-    <div style="font-size:11px;opacity:.65">${results.length} events · East Coast</div>
+    <div style="font-size:11px;opacity:.65">${results.length} events · ${REGIONS.join('/')}</div>
   </div>`;
 
   results.forEach((ev,ei)=>{
@@ -627,7 +695,7 @@ function buildBkHtml(wk,results){
   const tShq=REGIONS.map(r=>results.reduce((s,e)=>s+(e.shq[r]||0),0));
   return`<div class="bk-section">
     <div class="bk-title">Region Breakdown — Week ${wk}</div>
-    <div class="bk-sub">Sales Qty (BOX) and Shipment Qty (BOX) — East Coast</div>
+    <div class="bk-sub">Sales Qty (BOX) and Shipment Qty (BOX) — ${REGIONS.join('/')}</div>
     <div class="bk-grid">
       <div>
         <div class="bk-lbl" style="background:var(--navy)">SALES QTY (BOX) — ARAM</div>
@@ -677,6 +745,289 @@ function clearEvents(){
   evB1=null;
   document.getElementById('ev-b1Name').textContent='No file selected';
   document.getElementById('eventsReport').innerHTML='';
+  killCharts();
+}
+
+// ════════════════════════════════════════════
+// TAB 1B — EVENTS, OTHER REGIONS
+// (same B1/ARAM/Item List workflow, but the region columns are
+//  detected dynamically from each file instead of a fixed NY/NJ/PA/MA list)
+// ════════════════════════════════════════════
+let otherB1=null, otherSlotN=0;
+const otherSlots=[];
+
+function addOtherSlot(){
+  if(otherSlotN>=6) return;
+  const i=otherSlotN++;
+  otherSlots.push({name:'',aram:null,pack:null});
+  const g=document.getElementById('otherEventsGrid');
+  const d=document.createElement('div');
+  d.className='event-card';
+  d.innerHTML=`
+    <div class="event-card-hdr" style="background:var(--orange)">
+      <span>Event ${i+1}</span>
+      <span style="background:rgba(255,255,255,.2);border-radius:10px;padding:1px 8px;font-size:10px">#${i+1}</span>
+    </div>
+    <div class="ev-body-inner">
+      <input class="ev-name-input" placeholder="Event name" id="othn-${i}"
+             oninput="otherSlots[${i}].name=this.value">
+      <div>
+        <div class="file-row-lbl">ARAM Sales Report</div>
+        <label class="fup-btn" id="oth-aram-btn-${i}">
+          <input type="file" accept=".xlsx,.xls" onchange="handleOtherAram(${i},this)">
+          <span>📈</span><span id="oth-aram-txt-${i}">Choose file…</span>
+        </label>
+      </div>
+      <div>
+        <div class="file-row-lbl">Item List (Pack Sizes)</div>
+        <label class="fup-btn" id="oth-item-btn-${i}">
+          <input type="file" accept=".xlsx,.xls" onchange="handleOtherItem(${i},this)">
+          <span>📋</span><span id="oth-item-txt-${i}">Choose file…</span>
+        </label>
+      </div>
+    </div>`;
+  g.appendChild(d);
+}
+
+function handleOtherB1(inp){
+  const f=inp.files[0]; if(!f) return;
+  document.getElementById('oth-b1Name').innerHTML=`<span class="file-ok">✓ ${f.name}</span>`;
+  readXL(f).then(wb=>{
+    otherB1=parseB1Other(wb);
+    showStatus('oth-status',`B1 loaded: ${Object.keys(otherB1).length} items`,'ok');
+  });
+}
+function handleOtherAram(i,inp){
+  const f=inp.files[0]; if(!f) return;
+  document.getElementById(`oth-aram-btn-${i}`).classList.add('done');
+  document.getElementById(`oth-aram-txt-${i}`).textContent='✓ '+f.name;
+  readXL(f).then(wb=>{
+    const rows=parseAram(wb);
+    const otherRows=rows.filter(r=>!EAST.has(r.zone));
+    if(rows.length>0&&otherRows.length===0){
+      document.getElementById(`oth-aram-txt-${i}`).textContent='⚠️ '+f.name+' — All rows are NY/NJ/PA/MA. Use the Events tab for those.';
+      document.getElementById(`oth-aram-btn-${i}`).classList.remove('done');
+      document.getElementById(`oth-aram-btn-${i}`).classList.add('err');
+    }
+    otherSlots[i].aram=rows;
+  });
+}
+function handleOtherItem(i,inp){
+  const f=inp.files[0]; if(!f) return;
+  document.getElementById(`oth-item-btn-${i}`).classList.add('done');
+  document.getElementById(`oth-item-txt-${i}`).textContent='✓ '+f.name;
+  readXL(f).then(wb=>{ otherSlots[i].pack=buildPackMap(wb); });
+}
+
+// Same shape as parseB1(), but resolves each store code via the full
+// STORE_STATE map (otherReg) instead of the NY/NJ/PA/MA-only b1Reg().
+function parseB1Other(wb){
+  const data={};
+  sheetRows(wb).slice(1).forEach(r=>{
+    if(!r[0]) return;
+    const item=String(r[0]).trim();
+    const cust=String(r[3]||'');
+    const qty=Number(r[4])||0;
+    const amt=Number(r[5])||0;
+    const m=cust.match(/-([A-Z0-9]+)$/); if(!m) return;
+    const reg=otherReg(m[1]); if(!reg) return;
+    if(!data[item]) data[item]={};
+    if(!data[item][m[1]]) data[item][m[1]]={qty:0,amt:0,reg};
+    data[item][m[1]].qty+=qty;
+    data[item][m[1]].amt+=amt;
+  });
+  return data;
+}
+
+function calcOtherEvent(ev,regionsList){
+  if(!ev.aram) return null;
+  const pm=ev.pack||{};
+  const shq=Object.fromEntries(regionsList.map(r=>[r,0])), sha=Object.fromEntries(regionsList.map(r=>[r,0]));
+  const sq=Object.fromEntries(regionsList.map(r=>[r,0])),  sa=Object.fromEntries(regionsList.map(r=>[r,0]));
+  const stores={};
+  const ics=new Set(ev.aram.map(r=>r.ic));
+  if(otherB1){
+    ics.forEach(ic=>{
+      const s=otherB1[ic]||{};
+      for(const[store,v] of Object.entries(s)){
+        if(v.reg && regionsList.includes(v.reg)){ shq[v.reg]+=v.qty; sha[v.reg]+=v.amt; }
+      }
+    });
+  }
+  ev.aram.forEach(r=>{
+    if(!regionsList.includes(r.zone)) return;
+    const p=pm[r.upc]||pm[r.ic]||1;
+    sq[r.zone]=(sq[r.zone]||0)+r.qty/p;
+    sa[r.zone]=(sa[r.zone]||0)+r.amt;
+    if(!stores[r.store]) stores[r.store]={zone:r.zone,amt:0};
+    stores[r.store].amt+=r.amt;
+  });
+  regionsList.forEach(k=>sq[k]=Math.round(sq[k]));
+  const top10=Object.entries(stores)
+    .map(([s,v])=>({store:s,zone:v.zone,amt:Math.round(v.amt)}))
+    .sort((a,b)=>b.amt-a.amt).slice(0,10);
+  return{
+    shq,sha,sq,sa,top10,
+    tShq: regionsList.reduce((s,r)=>s+shq[r],0),
+    tSha: Math.round(regionsList.reduce((s,r)=>s+sha[r],0)),
+    tSq:  regionsList.reduce((s,r)=>s+sq[r],0),
+    tSa:  Math.round(regionsList.reduce((s,r)=>s+sa[r],0))
+  };
+}
+
+function generateOtherEvents(){
+  const active=otherSlots.filter(e=>e.aram&&e.name.trim());
+  if(!active.length){ showStatus('oth-status','Add at least one event name + ARAM file','err'); return; }
+  // Region columns are whatever non-NY/NJ/PA/MA zone codes actually appear
+  // in the uploaded ARAM files — no fixed state list to maintain.
+  const zoneSet=new Set();
+  active.forEach(ev=>ev.aram.forEach(r=>{ if(r.zone&&!EAST.has(r.zone)) zoneSet.add(r.zone); }));
+  const regionsList=[...zoneSet].sort();
+  if(!regionsList.length){ showStatus('oth-status','No non-NY/NJ/PA/MA rows found in the uploaded ARAM files','err'); return; }
+  const btn=document.getElementById('oth-genBtn');
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span>Generating…';
+  killCharts();
+  const wk=document.getElementById('oth-weekNum').value;
+  const dr=document.getElementById('oth-dateRange').value;
+  const results=active.map(ev=>({name:ev.name,...calcOtherEvent(ev,regionsList)}));
+  document.getElementById('otherEventsReport').innerHTML=buildOtherEvHtml(wk,dr,results,regionsList);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    results.forEach((ev,ei)=>{
+      const ctx=document.getElementById(`othc-${ei}`); if(!ctx) return;
+      allCharts.push(new Chart(ctx,{
+        type:'bar',
+        data:{
+          labels:regionsList,
+          datasets:[
+            {label:'Shipment (BOX)', data:regionsList.map(r=>ev.shq[r]), backgroundColor:'#4472C4', borderWidth:0},
+            {label:'Sales (BOX)',    data:regionsList.map(r=>ev.sq[r]),  backgroundColor:'#ED7D31', borderWidth:0}
+          ]
+        },
+        options:{
+          responsive:true, maintainAspectRatio:false,
+          plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:10}}},
+          scales:{
+            x:{grid:{display:false},ticks:{font:{size:11}}},
+            y:{grid:{color:'#eee'},ticks:{font:{size:9}}}
+          }
+        }
+      }));
+    });
+    btn.disabled=false; btn.textContent='⚡ Generate Other Regions Report';
+    document.getElementById('otherEventsReport').scrollIntoView({behavior:'smooth'});
+  }));
+}
+
+function buildOtherEvHtml(wk,dr,results,regionsList){
+  let h=`<div class="rpt-header" style="background:var(--orange)">
+    <div>
+      <span class="week-badge">W${wk}</span>
+      <h2 style="margin-top:6px">Week ${wk} in Review — Other Regions</h2>
+      <div style="font-size:11px;opacity:.7;margin-top:2px">${dr} | MD TEAM</div>
+    </div>
+    <div style="font-size:11px;opacity:.65">${results.length} events · ${regionsList.join('/')}</div>
+  </div>`;
+
+  results.forEach((ev,ei)=>{
+    const shaTxt=ev.tShq>0 ? fmtD(ev.tSha) : 'N/A';
+    h+=`<div class="event-section">
+      <div class="ev-title">${ei+1}. ${ev.name}</div>
+      <div class="ev-dr">${dr}</div>
+      <div class="ev-layout">
+        <div>
+          <div class="chart-wrap"><canvas id="othc-${ei}"></canvas></div>
+          <table class="sum-tbl">
+            <thead><tr>
+              <th></th>
+              ${regionsList.map(r=>`<th>${r} TOTAL</th>`).join('')}
+              <th class="yth">TOTAL</th>
+            </tr></thead>
+            <tbody>
+              <tr>
+                <td>Shipment Qty (BOX)</td>
+                ${regionsList.map(r=>`<td>${fmt(ev.shq[r])}</td>`).join('')}
+                <td class="yc">${fmt(ev.tShq)}</td>
+              </tr>
+              <tr>
+                <td>Sales Qty (BOX)</td>
+                ${regionsList.map(r=>`<td>${fmt(ev.sq[r])}</td>`).join('')}
+                <td class="yc">${fmt(ev.tSq)}</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="sum-line">Shipment &nbsp;${shaTxt} &nbsp;&nbsp;&nbsp;&nbsp; Sales &nbsp;${fmtD(ev.tSa)}</div>
+        </div>
+        <div>
+          <div class="top10-ttl">Regional Sales — Top 10 Stores</div>
+          <table class="top10-tbl">
+            <thead><tr><th>Region</th><th>Store</th><th>Amount ($)</th></tr></thead>
+            <tbody>
+              ${ev.top10.map(s=>`<tr><td>${s.zone}</td><td>${s.store}</td><td>${fmtD(s.amt)}</td></tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>`;
+  });
+  h+=buildOtherBkHtml(wk,results,regionsList);
+  return h;
+}
+
+function buildOtherBkHtml(wk,results,regionsList){
+  const tSq=regionsList.map(r=>results.reduce((s,e)=>s+(e.sq[r]||0),0));
+  const tShq=regionsList.map(r=>results.reduce((s,e)=>s+(e.shq[r]||0),0));
+  return`<div class="bk-section">
+    <div class="bk-title">Region Breakdown — Week ${wk} (Other Regions)</div>
+    <div class="bk-sub">Sales Qty (BOX) and Shipment Qty (BOX) — ${regionsList.join('/')}</div>
+    <div class="bk-grid">
+      <div>
+        <div class="bk-lbl" style="background:var(--navy)">SALES QTY (BOX) — ARAM</div>
+        <table class="bk-tbl">
+          <thead><tr><th>#</th><th>Event</th>${regionsList.map(r=>`<th>${r}</th>`).join('')}<th class="y">TOTAL</th><th class="y">Sales ($)</th></tr></thead>
+          <tbody>
+            ${results.map((e,i)=>`<tr>
+              <td>${i+1}</td><td>${e.name}</td>
+              ${regionsList.map(r=>`<td>${fmt(e.sq[r]||0)}</td>`).join('')}
+              <td class="yc">${fmt(e.tSq)}</td>
+              <td class="yc">${fmtD(e.tSa)}</td>
+            </tr>`).join('')}
+            <tr class="tot">
+              <td></td><td>TOTAL</td>
+              ${tSq.map(v=>`<td>${fmt(v)}</td>`).join('')}
+              <td>${fmt(tSq.reduce((a,b)=>a+b,0))}</td>
+              <td>${fmtD(results.reduce((s,e)=>s+e.tSa,0))}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div>
+        <div class="bk-lbl" style="background:var(--blue)">SHIPMENT QTY (BOX) — B1</div>
+        <table class="bk-tbl">
+          <thead><tr><th>#</th><th>Event</th>${regionsList.map(r=>`<th>${r}</th>`).join('')}<th class="y">TOTAL</th><th class="y">Sales ($)</th></tr></thead>
+          <tbody>
+            ${results.map((e,i)=>`<tr>
+              <td>${i+1}</td><td>${e.name}</td>
+              ${regionsList.map(r=>`<td>${e.tShq>0||e.shq[r]>0 ? fmt(e.shq[r]) : '-'}</td>`).join('')}
+              <td class="yc">${e.tShq>0 ? fmt(e.tShq) : '-'}</td>
+              <td class="yc">${fmtD(e.tSa)}</td>
+            </tr>`).join('')}
+            <tr class="tot">
+              <td></td><td>TOTAL</td>
+              ${tShq.map(v=>`<td>${fmt(v)}</td>`).join('')}
+              <td>${fmt(tShq.reduce((a,b)=>a+b,0))}</td>
+              <td>${fmtD(results.reduce((s,e)=>s+e.tSa,0))}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>`;
+}
+
+function clearOtherEvents(){
+  otherB1=null;
+  document.getElementById('oth-b1Name').textContent='No file selected';
+  document.getElementById('otherEventsReport').innerHTML='';
   killCharts();
 }
 
@@ -804,8 +1155,8 @@ async function handleNiBaSale(i,inp){
 
     products.forEach(p=>{
       const row=dRows.find(r=>r&&r[0]&&String(Math.round(r[0]))===p.upc);
-      if(!row){ p.dist={NY:0,NJ:0,PA:0,MA:0,TOTAL:0}; return; }
-      const dist={NY:0,NJ:0,PA:0,MA:0};
+      if(!row){ p.dist=Object.fromEntries(REGIONS.map(r=>[r,0])); p.dist.TOTAL=0; return; }
+      const dist=Object.fromEntries(REGIONS.map(r=>[r,0]));
       Object.entries(colReg).forEach(([ci,reg])=>{
         if(EAST.has(reg)&&row[ci]&&Number(row[ci])>0) dist[reg]+=Number(row[ci]);
       });
@@ -836,12 +1187,12 @@ function generateNewItems(){
 
   const enriched=allProducts.map(p=>{
     const aramRows=(niAram&&niAram[p.upc])||[];
-    const sq={NY:0,NJ:0,PA:0,MA:0}, sa={NY:0,NJ:0,PA:0,MA:0};
+    const sq=Object.fromEntries(REGIONS.map(r=>[r,0])), sa=Object.fromEntries(REGIONS.map(r=>[r,0]));
     aramRows.forEach(r=>{ if(!EAST.has(r.zone)) return; sq[r.zone]+=r.qty/(p.pack||1); sa[r.zone]+=r.amt; });
     REGIONS.forEach(k=>sq[k]=Math.round(sq[k]));
     const tSq=REGIONS.reduce((s,r)=>s+sq[r],0);
     const tSa=Math.round(REGIONS.reduce((s,r)=>s+sa[r],0));
-    const dist=p.dist||{NY:0,NJ:0,PA:0,MA:0,TOTAL:0};
+    const dist=p.dist||Object.assign(Object.fromEntries(REGIONS.map(r=>[r,0])),{TOTAL:0});
     const distAmt=Math.round((dist.TOTAL||0)*(p.cost||0));
     return{...p,sq,sa,tSq,tSa,dist,distAmt};
   });
@@ -903,7 +1254,7 @@ function generateNewItems(){
         <h2 style="margin-top:6px">New Items — Week ${wk}</h2>
         <div style="font-size:11px;opacity:.7;margin-top:2px">${dr} | MD TEAM</div>
       </div>
-      <div style="font-size:11px;opacity:.65">${enriched.length} new products · East Coast (NY/NJ/PA/MA)</div>
+      <div style="font-size:11px;opacity:.65">${enriched.length} new products · ${REGIONS.join('/')}</div>
     </div>
     <div class="ni-out-body">
 
@@ -915,9 +1266,9 @@ function generateNewItems(){
         <thead>
           <tr>
             <th rowspan="2">Description</th>
-            <th colspan="5" style="background:#2E74B5">Distribution (BOX)</th>
+            <th colspan="${REGIONS.length+1}" style="background:#2E74B5">Distribution (BOX)</th>
             <th rowspan="2" style="background:#1a5276;color:#fff;">Dist. Amount ($)</th>
-            <th colspan="5" style="background:#ED7D31">ARAM Sales (BOX)</th>
+            <th colspan="${REGIONS.length+1}" style="background:#ED7D31">ARAM Sales (BOX)</th>
             <th rowspan="2" class="y">ARAM Sales ($)</th>
           </tr>
           <tr>
@@ -994,7 +1345,7 @@ function generateNewItems(){
           plugins:{
             legend:{position:'bottom',labels:{font:{size:11},boxWidth:12}},
             title:{display:true,
-                   text:`New Items Week ${wk} — Distribution vs ARAM Sales (East Coast)`,
+                   text:`New Items Week ${wk} — Distribution vs ARAM Sales (${REGIONS.join('/')})`,
                    font:{size:13,weight:'bold'},color:'#1F3864'}
           },
           scales:{
