@@ -498,7 +498,7 @@ window.onload=()=>{
 function addEvSlot(){
   if(evSlotN>=6) return;
   const i=evSlotN++;
-  evSlots.push({name:'',aram:null,pack:null});
+  evSlots.push({name:'',date:'',aram:null,pack:null});
   const g=document.getElementById('eventsGrid');
   const d=document.createElement('div');
   d.className='event-card';
@@ -510,6 +510,8 @@ function addEvSlot(){
     <div class="ev-body-inner">
       <input class="ev-name-input" placeholder="Event name" id="evn-${i}"
              oninput="evSlots[${i}].name=this.value">
+      <input class="ev-name-input" placeholder="Event date (optional, e.g. 06/02 - 06/08)" id="evd-${i}"
+             oninput="evSlots[${i}].date=this.value">
       <div>
         <div class="file-row-lbl">ARAM Sales Report</div>
         <label class="fup-btn" id="aram-btn-${i}">
@@ -755,7 +757,7 @@ function generateEvents(){
   killCharts();
   const wk=document.getElementById('ev-weekNum').value;
   const dr=document.getElementById('ev-dateRange').value;
-  const results=active.map(ev=>({name:ev.name,...calcEvent(ev)}));
+  const results=active.map(ev=>({name:ev.name,date:ev.date,...calcEvent(ev)}));
   document.getElementById('eventsReport').innerHTML=buildEvHtml(wk,dr,results);
   requestAnimationFrame(()=>requestAnimationFrame(()=>{
     results.forEach((ev,ei)=>{
@@ -798,7 +800,7 @@ function buildEvHtml(wk,dr,results){
     const shaTxt=ev.tShq>0 ? fmtD(ev.tSha) : 'N/A';
     h+=`<div class="event-section">
       <div class="ev-title">${ei+1}. ${ev.name}</div>
-      <div class="ev-dr">${dr}</div>
+      <div class="ev-dr">${(ev.date&&ev.date.trim())?escHtml(ev.date.trim()):dr}</div>
       <div class="ev-layout">
         <div>
           <div class="chart-wrap"><canvas id="evc-${ei}"></canvas></div>
@@ -909,7 +911,7 @@ const otherSlots=[];
 function addOtherSlot(){
   if(otherSlotN>=6) return;
   const i=otherSlotN++;
-  otherSlots.push({name:'',aram:null,pack:null});
+  otherSlots.push({name:'',date:'',aram:null,pack:null});
   const g=document.getElementById('otherEventsGrid');
   const d=document.createElement('div');
   d.className='event-card';
@@ -921,6 +923,8 @@ function addOtherSlot(){
     <div class="ev-body-inner">
       <input class="ev-name-input" placeholder="Event name" id="othn-${i}"
              oninput="otherSlots[${i}].name=this.value">
+      <input class="ev-name-input" placeholder="Event date (optional, e.g. 06/02 - 06/08)" id="othd-${i}"
+             oninput="otherSlots[${i}].date=this.value">
       <div>
         <div class="file-row-lbl">ARAM Sales Report</div>
         <label class="fup-btn" id="oth-aram-btn-${i}">
@@ -1040,7 +1044,7 @@ function generateOtherEvents(){
   killCharts();
   const wk=document.getElementById('oth-weekNum').value;
   const dr=document.getElementById('oth-dateRange').value;
-  const results=active.map(ev=>({name:ev.name,...calcOtherEvent(ev,regionsList)}));
+  const results=active.map(ev=>({name:ev.name,date:ev.date,...calcOtherEvent(ev,regionsList)}));
   document.getElementById('otherEventsReport').innerHTML=buildOtherEvHtml(wk,dr,results,regionsList);
   requestAnimationFrame(()=>requestAnimationFrame(()=>{
     results.forEach((ev,ei)=>{
@@ -1083,7 +1087,7 @@ function buildOtherEvHtml(wk,dr,results,regionsList){
     const shaTxt=ev.tShq>0 ? fmtD(ev.tSha) : 'N/A';
     h+=`<div class="event-section">
       <div class="ev-title">${ei+1}. ${ev.name}</div>
-      <div class="ev-dr">${dr}</div>
+      <div class="ev-dr">${(ev.date&&ev.date.trim())?escHtml(ev.date.trim()):dr}</div>
       <div class="ev-layout">
         <div>
           <div class="chart-wrap"><canvas id="othc-${ei}"></canvas></div>
