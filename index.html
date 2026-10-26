@@ -131,6 +131,8 @@ body{font-family:Calibri,Arial,sans-serif;background:#f0f4f8;color:#222;min-heig
 .pdf-btn:disabled{background:#ccc;cursor:wait;}
 .rpt-right{display:flex;align-items:center;gap:6px;}
 
+.items-tbl td.desc{text-align:left;padding-left:10px;}
+
 /* STATUS */
 .status{padding:7px 20px;font-size:12px;border-radius:4px;margin-bottom:10px;display:none;}
 .status-err{background:#ffe0e0;color:#c00;border:1px solid #f99;}
@@ -553,7 +555,7 @@ function handleEvItem(i,inp){
   const f=inp.files[0]; if(!f) return;
   document.getElementById(`item-btn-${i}`).classList.add('done');
   document.getElementById(`item-txt-${i}`).textContent='✓ '+f.name;
-  readXL(f).then(wb=>{ evSlots[i].pack=buildPackMap(wb); });
+  readXL(f).then(wb=>{ evSlots[i].pack=buildPackMap(wb); evSlots[i].desc=buildDescMap(wb); });
 }
 
 function parseB1(wb){
@@ -583,6 +585,78 @@ function parseAram(wb){
     amt:  Number(r[7])||0
   }));
 }
+// ── Top-10 selling items (shown for events that are NOT 40th/45th anniversary events) ──
+function isAnnivEvent(name){
+  const n=String(name||'');
+  return /(?:^|[^0-9])(?:40|45)\s*(?:th|주\s*년|year|yr|anniv|event)/i.test(n);
+}
+function escHtml(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// Item description lookup (UPC / item code → description) from the Item List file.
+function buildDescMap(wb){
+  const dm={};
+  const clean=t=>String(t).replace(/\s+/g,' ').trim();
+  wb.SheetNames.forEach(sn=>{
+    const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:null});
+    let upcCol=2, icCol=1, descCol=-1;
+    for(let ri=0;ri<Math.min(8,rows.length);ri++){
+      const hdr=rows[ri]||[]; let found=false;
+      hdr.forEach((h,ci)=>{
+        if(!h) return;
+        const hs=String(h).toUpperCase().replace(/[\s\/\n_]/g,'');
+        if(hs==='UPC'||hs==='UPCCODE'||hs==='UPCNO'||hs==='UPCNUMBER'){ upcCol=ci; found=true; }
+        if(hs==='B1CODE'||hs==='B1'||hs==='IC'||hs==='B1ITEMCODE'||(hs.includes('ITEM')&&hs.includes('CODE'))){ icCol=ci; found=true; }
+        if(hs.includes('DESCRIPTION')||hs==='DESC'||hs==='ITEMNAME'||hs==='PRODUCTNAME'||hs==='PRODUCT'||hs==='품명'||hs==='상품명'||hs==='제품명'){ descCol=ci; found=true; }
+      });
+      if(found) break;
+    }
+    rows.forEach(row=>{
+      if(!row) return;
+      const u=row[upcCol]!=null?String(row[upcCol]).replace(/\.0$/,'').trim():'';
+      const ic=row[icCol]!=null?String(row[icCol]).replace(/\.0$/,'').trim():'';
+      const uOk=/^\d{8,14}$/.test(u), iOk=/^\d{5,}$/.test(ic);
+      if(!uOk&&!iOk) return;
+      let d=(descCol>=0&&typeof row[descCol]==='string')?clean(row[descCol]):'';
+      if(!d){ // fallback: longest text cell in the row
+        for(const c of row){
+          if(typeof c!=='string') continue;
+          const t=clean(c);
+          if(t.length>=8&&!/^[\d\s*.\-x]+$/i.test(t)&&t.length>d.length) d=t;
+        }
+      }
+      if(!d) return;
+      if(uOk){ if(!dm[u]) dm[u]=d; if(u.length===13&&!dm[u.slice(0,-1)]) dm[u.slice(0,-1)]=d; }
+      if(iOk&&!dm[ic]) dm[ic]=d;
+    });
+  });
+  return dm;
+}
+
+function calcTopItems(aramRows, dm, allowFn){
+  const items={};
+  aramRows.forEach(r=>{
+    if(!allowFn(r.zone)) return;
+    const key=r.upc||r.ic; if(!key) return;
+    if(!items[key]) items[key]={desc:'',upc:key,amt:0};
+    if(!items[key].desc) items[key].desc=dm[r.upc]||dm[r.ic]||'';
+    items[key].amt+=r.amt;
+  });
+  return Object.values(items)
+    .sort((a,b)=>b.amt-a.amt).slice(0,10)
+    .map(i=>({desc:i.desc||('UPC '+i.upc),amt:Math.round(i.amt)}));
+}
+
+function buildTopItemsHtml(ev){
+  if(!ev.topItems||!ev.topItems.length) return '';
+  return `<div class="top10-ttl" style="margin-top:18px">Top 10 Selling Items</div>
+          <table class="top10-tbl items-tbl">
+            <thead><tr><th style="width:34px">#</th><th>Item Description</th><th>Amount ($)</th></tr></thead>
+            <tbody>
+              ${ev.topItems.map((it,i)=>`<tr><td>${i+1}</td><td class="desc">${escHtml(it.desc)}</td><td>${fmtD(it.amt)}</td></tr>`).join('')}
+            </tbody>
+          </table>`;
+}
+
 function buildPackMap(wb){
   const pm={};
   wb.SheetNames.forEach(sn=>{
@@ -664,6 +738,7 @@ function calcEvent(ev){
     .sort((a,b)=>b.amt-a.amt).slice(0,10);
   return{
     shq,sha,sq,sa,top10,
+    topItems: isAnnivEvent(ev.name)?null:calcTopItems(ev.aram,ev.desc||{},z=>EAST.has(z)),
     tShq: REGIONS.reduce((s,r)=>s+shq[r],0),
     tSha: Math.round(REGIONS.reduce((s,r)=>s+sha[r],0)),
     tSq:  REGIONS.reduce((s,r)=>s+sq[r],0),
@@ -756,6 +831,7 @@ function buildEvHtml(wk,dr,results){
               ${ev.top10.map(s=>`<tr><td>${s.zone}</td><td>${s.store}</td><td>${fmtD(s.amt)}</td></tr>`).join('')}
             </tbody>
           </table>
+          ${buildTopItemsHtml(ev)}
         </div>
       </div>
     </div>`;
@@ -890,7 +966,7 @@ function handleOtherItem(i,inp){
   const f=inp.files[0]; if(!f) return;
   document.getElementById(`oth-item-btn-${i}`).classList.add('done');
   document.getElementById(`oth-item-txt-${i}`).textContent='✓ '+f.name;
-  readXL(f).then(wb=>{ otherSlots[i].pack=buildPackMap(wb); });
+  readXL(f).then(wb=>{ otherSlots[i].pack=buildPackMap(wb); otherSlots[i].desc=buildDescMap(wb); });
 }
 
 // Same shape as parseB1(), but resolves each store code via the full
@@ -942,6 +1018,7 @@ function calcOtherEvent(ev,regionsList){
     .sort((a,b)=>b.amt-a.amt).slice(0,10);
   return{
     shq,sha,sq,sa,top10,
+    topItems: isAnnivEvent(ev.name)?null:calcTopItems(ev.aram,ev.desc||{},z=>regionsList.includes(z)),
     tShq: regionsList.reduce((s,r)=>s+shq[r],0),
     tSha: Math.round(regionsList.reduce((s,r)=>s+sha[r],0)),
     tSq:  regionsList.reduce((s,r)=>s+sq[r],0),
@@ -1039,6 +1116,7 @@ function buildOtherEvHtml(wk,dr,results,regionsList){
               ${ev.top10.map(s=>`<tr><td>${s.zone}</td><td>${s.store}</td><td>${fmtD(s.amt)}</td></tr>`).join('')}
             </tbody>
           </table>
+          ${buildTopItemsHtml(ev)}
         </div>
       </div>
     </div>`;
