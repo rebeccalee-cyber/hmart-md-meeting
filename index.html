@@ -11,6 +11,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 
 /* ── LOGIN OVERLAY ── */
@@ -123,6 +125,11 @@ body{font-family:Calibri,Arial,sans-serif;background:#f0f4f8;color:#222;min-heig
 .btn:disabled{background:#aaa;cursor:not-allowed;}
 .spinner{display:inline-block;width:13px;height:13px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:5px;}
 @keyframes spin{to{transform:rotate(360deg);}}
+
+.pdf-btn{background:#fff;color:var(--navy);border:none;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;margin-left:14px;white-space:nowrap;}
+.pdf-btn:hover{background:var(--yellow);}
+.pdf-btn:disabled{background:#ccc;cursor:wait;}
+.rpt-right{display:flex;align-items:center;gap:6px;}
 
 /* STATUS */
 .status{padding:7px 20px;font-size:12px;border-radius:4px;margin-bottom:10px;display:none;}
@@ -421,6 +428,56 @@ function showStatus(id,msg,type){
   setTimeout(()=>el.style.display='none',5000);
 }
 
+
+// ════════════════════════════════════════════
+// PDF EXPORT — captures each report block and lays it onto landscape pages
+// ════════════════════════════════════════════
+async function exportPdf(containerId, weekInputId, label, btn){
+  const root=document.getElementById(containerId);
+  if(!root||!root.children.length){ alert('Generate a report first.'); return; }
+  if(!window.html2canvas||!window.jspdf){ alert('PDF libraries are still loading — try again in a moment.'); return; }
+  const orig=btn?btn.textContent:'';
+  if(btn){ btn.disabled=true; btn.textContent='Building PDF…'; }
+  try{
+    const { jsPDF }=window.jspdf;
+    const pdf=new jsPDF({orientation:'landscape',unit:'pt',format:'letter'});
+    const PW=pdf.internal.pageSize.getWidth(), PH=pdf.internal.pageSize.getHeight();
+    const M=24, usableW=PW-2*M, usableH=PH-2*M;
+    let y=M, first=true;
+    for(const el of Array.from(root.children)){
+      const canvas=await html2canvas(el,{scale:2,useCORS:true,backgroundColor:'#ffffff',logging:false});
+      if(!canvas.width||!canvas.height) continue;
+      const ratio=usableW/canvas.width;
+      const h=canvas.height*ratio;
+      if(h<=usableH){
+        if(!first && y+h>PH-M){ pdf.addPage(); y=M; }
+        pdf.addImage(canvas.toDataURL('image/jpeg',0.92),'JPEG',M,y,usableW,h);
+        y+=h; first=false;
+      }else{
+        // taller than one page: split into page-height slices
+        if(!first){ pdf.addPage(); y=M; }
+        const slicePx=Math.floor(usableH/ratio);
+        for(let sy=0; sy<canvas.height; sy+=slicePx){
+          const sh=Math.min(slicePx,canvas.height-sy);
+          const part=document.createElement('canvas');
+          part.width=canvas.width; part.height=sh;
+          part.getContext('2d').drawImage(canvas,0,sy,canvas.width,sh,0,0,canvas.width,sh);
+          if(sy>0){ pdf.addPage(); }
+          pdf.addImage(part.toDataURL('image/jpeg',0.92),'JPEG',M,M,usableW,sh*ratio);
+        }
+        y=M+ (canvas.height%slicePx||slicePx)*ratio; first=false;
+      }
+    }
+    const wk=(document.getElementById(weekInputId)||{}).value||'';
+    pdf.save(`HMart_W${wk}_${label}.pdf`);
+  }catch(e){
+    console.error(e);
+    alert('Could not build the PDF: '+e.message);
+  }finally{
+    if(btn){ btn.disabled=false; btn.textContent=orig; }
+  }
+}
+
 const allCharts=[];
 function killCharts(){allCharts.forEach(c=>{try{c.destroy();}catch(e){}});allCharts.length=0;}
 
@@ -659,7 +716,7 @@ function buildEvHtml(wk,dr,results){
       <h2 style="margin-top:6px">Week ${wk} in Review</h2>
       <div style="font-size:11px;opacity:.7;margin-top:2px">${dr} | MD TEAM</div>
     </div>
-    <div style="font-size:11px;opacity:.65">${results.length} events · ${REGIONS.join('/')}</div>
+    <div class="rpt-right"><div style="font-size:11px;opacity:.65">${results.length} events · ${REGIONS.join('/')}</div><button class="pdf-btn" data-html2canvas-ignore="true" onclick="exportPdf('eventsReport','ev-weekNum','Events_NY-NJ-PA-MA',this)">📄 Export PDF</button></div>
   </div>`;
 
   results.forEach((ev,ei)=>{
@@ -942,7 +999,7 @@ function buildOtherEvHtml(wk,dr,results,regionsList){
       <h2 style="margin-top:6px">Week ${wk} in Review — Other Regions</h2>
       <div style="font-size:11px;opacity:.7;margin-top:2px">${dr} | MD TEAM</div>
     </div>
-    <div style="font-size:11px;opacity:.65">${results.length} events · ${regionsList.join('/')}</div>
+    <div class="rpt-right"><div style="font-size:11px;opacity:.65">${results.length} events · ${regionsList.join('/')}</div><button class="pdf-btn" data-html2canvas-ignore="true" onclick="exportPdf('otherEventsReport','oth-weekNum','Events_Other-Regions',this)">📄 Export PDF</button></div>
   </div>`;
 
   results.forEach((ev,ei)=>{
@@ -1271,7 +1328,7 @@ function generateNewItems(){
         <h2 style="margin-top:6px">New Items — Week ${wk}</h2>
         <div style="font-size:11px;opacity:.7;margin-top:2px">${dr} | MD TEAM</div>
       </div>
-      <div style="font-size:11px;opacity:.65">${enriched.length} new products · ${REGIONS.join('/')}</div>
+      <div class="rpt-right"><div style="font-size:11px;opacity:.65">${enriched.length} new products · ${REGIONS.join('/')}</div><button class="pdf-btn" data-html2canvas-ignore="true" onclick="exportPdf('niReport','ni-weekNum','New-Items',this)">📄 Export PDF</button></div>
     </div>
     <div class="ni-out-body">
 
