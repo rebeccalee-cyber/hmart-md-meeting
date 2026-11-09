@@ -595,7 +595,7 @@ function parseAram(wb){
     amt:  Number(r[7])||0
   }));
 }
-// ── Top-10 selling items (shown for events that are NOT 40th/45th anniversary events) ──
+// ── Top-10 selling items (default: hidden for 40th/45th anniversary events, shown for all others) ──
 // Per-event "show top items" choice: if the user never touched the checkbox, it
 // follows the event name (off for 40th/45th events, on otherwise).
 function wantItems(ev){ return (ev.showItems===null||ev.showItems===undefined)?!isAnnivEvent(ev.name):!!ev.showItems; }
@@ -608,7 +608,11 @@ function syncItemsOpt(idPrefix,slots,i){
 }
 function isAnnivEvent(name){
   const n=String(name||'');
-  return /(?:^|[^0-9])(?:40|45)\s*(?:th|주\s*년|year|yr|anniv|event)/i.test(n);
+  // 40th / 45th anniversary events: "40th", "45 TH", "45주년", "45 주년", "45년", "45 years",
+  // "45 anniversary", "45 event", "Anniversary 45", "사십오주년" ...
+  return /(?:^|[^0-9])(?:40|45)\s*(?:th|st|nd|rd|주\s*년|주|년|year|yr|anniv|event)/i.test(n)
+      || /anniv\w*\s*[-:#]?\s*(?:40|45)(?![0-9])/i.test(n)
+      || /(?:사십|오십|사십오)\s*주\s*년/.test(n);
 }
 function escHtml(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
