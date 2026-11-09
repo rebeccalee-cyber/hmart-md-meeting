@@ -498,7 +498,7 @@ window.onload=()=>{
 function addEvSlot(){
   if(evSlotN>=6) return;
   const i=evSlotN++;
-  evSlots.push({name:'',date:'',aram:null,pack:null});
+  evSlots.push({name:'',date:'',showItems:null,topN:10,aram:null,pack:null});
   const g=document.getElementById('eventsGrid');
   const d=document.createElement('div');
   d.className='event-card';
@@ -509,9 +509,17 @@ function addEvSlot(){
     </div>
     <div class="ev-body-inner">
       <input class="ev-name-input" placeholder="Event name" id="evn-${i}"
-             oninput="evSlots[${i}].name=this.value">
+             oninput="evSlots[${i}].name=this.value;syncItemsOpt('evi-',evSlots,${i})">
       <input class="ev-name-input" placeholder="Event date (optional, e.g. 06/02 - 06/08)" id="evd-${i}"
              oninput="evSlots[${i}].date=this.value">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;color:#555;">
+        <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-weight:700;">
+          <input type="checkbox" id="evi-${i}" checked onchange="evSlots[${i}].showItems=this.checked"> Show top selling items
+        </label>
+        <select id="evt-${i}" onchange="evSlots[${i}].topN=Number(this.value)" style="border:1px solid #ccc;border-radius:4px;padding:3px 6px;font-size:11px;">
+          <option value="10">Top 10</option><option value="5">Top 5</option>
+        </select>
+      </div>
       <div>
         <div class="file-row-lbl">ARAM Sales Report</div>
         <label class="fup-btn" id="aram-btn-${i}">
@@ -588,6 +596,16 @@ function parseAram(wb){
   }));
 }
 // ── Top-10 selling items (shown for events that are NOT 40th/45th anniversary events) ──
+// Per-event "show top items" choice: if the user never touched the checkbox, it
+// follows the event name (off for 40th/45th events, on otherwise).
+function wantItems(ev){ return (ev.showItems===null||ev.showItems===undefined)?!isAnnivEvent(ev.name):!!ev.showItems; }
+function syncItemsOpt(idPrefix,slots,i){
+  const s=slots[i];
+  if(s.showItems===null||s.showItems===undefined){
+    const cb=document.getElementById(idPrefix+i);
+    if(cb) cb.checked=!isAnnivEvent(s.name);
+  }
+}
 function isAnnivEvent(name){
   const n=String(name||'');
   return /(?:^|[^0-9])(?:40|45)\s*(?:th|주\s*년|year|yr|anniv|event)/i.test(n);
@@ -634,7 +652,7 @@ function buildDescMap(wb){
   return dm;
 }
 
-function calcTopItems(aramRows, dm, allowFn){
+function calcTopItems(aramRows, dm, allowFn, n){
   const items={};
   aramRows.forEach(r=>{
     if(!allowFn(r.zone)) return;
@@ -644,13 +662,13 @@ function calcTopItems(aramRows, dm, allowFn){
     items[key].amt+=r.amt;
   });
   return Object.values(items)
-    .sort((a,b)=>b.amt-a.amt).slice(0,10)
+    .sort((a,b)=>b.amt-a.amt).slice(0,n||10)
     .map(i=>({desc:i.desc||('UPC '+i.upc),amt:Math.round(i.amt)}));
 }
 
 function buildTopItemsHtml(ev){
   if(!ev.topItems||!ev.topItems.length) return '';
-  return `<div class="top10-ttl" style="margin-top:18px">Top 10 Selling Items</div>
+  return `<div class="top10-ttl" style="margin-top:18px">Top ${ev.topN||10} Selling Items</div>
           <table class="top10-tbl items-tbl">
             <thead><tr><th style="width:34px">#</th><th>Item Description</th><th>Amount ($)</th></tr></thead>
             <tbody>
@@ -740,7 +758,8 @@ function calcEvent(ev){
     .sort((a,b)=>b.amt-a.amt).slice(0,10);
   return{
     shq,sha,sq,sa,top10,
-    topItems: isAnnivEvent(ev.name)?null:calcTopItems(ev.aram,ev.desc||{},z=>EAST.has(z)),
+    topItems: wantItems(ev)?calcTopItems(ev.aram,ev.desc||{},z=>EAST.has(z),ev.topN):null,
+    topN: ev.topN||10,
     tShq: REGIONS.reduce((s,r)=>s+shq[r],0),
     tSha: Math.round(REGIONS.reduce((s,r)=>s+sha[r],0)),
     tSq:  REGIONS.reduce((s,r)=>s+sq[r],0),
@@ -911,7 +930,7 @@ const otherSlots=[];
 function addOtherSlot(){
   if(otherSlotN>=6) return;
   const i=otherSlotN++;
-  otherSlots.push({name:'',date:'',aram:null,pack:null});
+  otherSlots.push({name:'',date:'',showItems:null,topN:10,aram:null,pack:null});
   const g=document.getElementById('otherEventsGrid');
   const d=document.createElement('div');
   d.className='event-card';
@@ -922,9 +941,17 @@ function addOtherSlot(){
     </div>
     <div class="ev-body-inner">
       <input class="ev-name-input" placeholder="Event name" id="othn-${i}"
-             oninput="otherSlots[${i}].name=this.value">
+             oninput="otherSlots[${i}].name=this.value;syncItemsOpt('othi-',otherSlots,${i})">
       <input class="ev-name-input" placeholder="Event date (optional, e.g. 06/02 - 06/08)" id="othd-${i}"
              oninput="otherSlots[${i}].date=this.value">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;color:#555;">
+        <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-weight:700;">
+          <input type="checkbox" id="othi-${i}" checked onchange="otherSlots[${i}].showItems=this.checked"> Show top selling items
+        </label>
+        <select id="otht-${i}" onchange="otherSlots[${i}].topN=Number(this.value)" style="border:1px solid #ccc;border-radius:4px;padding:3px 6px;font-size:11px;">
+          <option value="10">Top 10</option><option value="5">Top 5</option>
+        </select>
+      </div>
       <div>
         <div class="file-row-lbl">ARAM Sales Report</div>
         <label class="fup-btn" id="oth-aram-btn-${i}">
@@ -1022,7 +1049,8 @@ function calcOtherEvent(ev,regionsList){
     .sort((a,b)=>b.amt-a.amt).slice(0,10);
   return{
     shq,sha,sq,sa,top10,
-    topItems: isAnnivEvent(ev.name)?null:calcTopItems(ev.aram,ev.desc||{},z=>regionsList.includes(z)),
+    topItems: wantItems(ev)?calcTopItems(ev.aram,ev.desc||{},z=>regionsList.includes(z),ev.topN):null,
+    topN: ev.topN||10,
     tShq: regionsList.reduce((s,r)=>s+shq[r],0),
     tSha: Math.round(regionsList.reduce((s,r)=>s+sha[r],0)),
     tSq:  regionsList.reduce((s,r)=>s+sq[r],0),
